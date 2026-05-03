@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matt Lilly's Poster Cropper</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Berkshire+Swash&display=swap" rel="stylesheet">
+    <!-- Cropper.js CSS for the cropping interface -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <style>
+        body {
+            background-color: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #e2e8f0;
+        }
+        .dead-font {
+            font-family: 'Berkshire Swash', cursive;
+        }
+        /* Ensure the cropper image doesn't overflow wildly before initialization */
+        img {
+            display: block;
+            max-width: 100%;
+        }
+        /* Custom scrollbars for the new workspace view */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 6px;
+            border: 3px solid #e5e7eb;
+        }
+        ::-webkit-scrollbar-corner {
+            background: #e5e7eb;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 flex flex-col items-center py-10 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-[0_0_40px_rgba(255,255,255,0.1)] overflow-hidden border-2 border-gray-700">
+        
+        <!-- Header -->
+        <div class="bg-black px-6 py-10 sm:px-10 text-center border-b-4 border-yellow-400">
+            <h1 class="dead-font text-4xl sm:text-5xl font-extrabold text-white mb-4 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] tracking-wider">Matt Lilly's Poster Cropper</h1>
+            <p class="text-white text-lg sm:text-xl font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] max-w-2xl mx-auto">
+                Upload your gig posters to automatically trim the white edges. You can manually adjust the crop before downloading.
+            </p>
+        </div>
+
+        <div class="p-6 sm:p-10 bg-gray-50 text-gray-800">
+            
+            <!-- Upload Area (Visible initially) -->
+            <div id="upload-area" class="border-4 border-dashed border-red-300 rounded-xl p-12 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[300px]">
+                <svg class="w-16 h-16 text-blue-500 mb-4 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                <h3 class="text-xl font-medium text-gray-900 mb-1">Click to upload or drag & drop</h3>
+                <p class="text-gray-500 text-sm">Supports JPG, PNG, WEBP</p>
+                <input type="file" id="file-input" class="hidden" accept="image/png, image/jpeg, image/webp" />
+            </div>
+
+            <!-- Workspace Area (Hidden initially) -->
+            <div id="workspace-area" class="hidden flex-col gap-6">
+                
+                <!-- Toolbar -->
+                <div class="flex flex-wrap items-center justify-between gap-4 bg-gray-200 p-4 rounded-lg border border-gray-300 shadow-inner">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="btn-auto-crop" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm">
+                            Re-run Auto Crop
+                        </button>
+                        <button id="btn-reset" class="px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors shadow-sm">
+                            Reset Crop
+                        </button>
+                        <div class="h-8 w-px bg-gray-400 mx-1"></div>
+                        <button id="btn-zoom-in" class="p-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm" title="Zoom In">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                        </button>
+                        <button id="btn-zoom-out" class="p-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm" title="Zoom Out">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path></svg>
+                        </button>
+                        <span class="text-xs font-medium text-gray-500 hidden sm:inline-block ml-2">
+                            💡 Tip: Use zoom buttons and scrollbars to move around
+                        </span>
+                    </div>
+                    <button id="btn-new-image" class="px-4 py-2 bg-yellow-500 border border-transparent rounded-md text-sm font-medium text-gray-900 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors shadow-sm">
+                        Upload Different Image
+                    </button>
+                </div>
+
+                <!-- Cropper Container -->
+                <!-- The scroll-wrapper is fixed, and provides native scrollbars when the inner container grows -->
+                <div id="scroll-wrapper" class="w-full h-[60vh] overflow-auto shadow-inner border-2 border-gray-400 bg-[#e5e7eb] rounded-lg relative">
+                    <!-- The cropper-container grows physically when zoomed -->
+                    <div id="cropper-container" class="w-full h-full min-w-full min-h-full flex items-center justify-center">
+                        <img id="image" src="" alt="Picture to crop" class="block max-w-full">
+                    </div>
+                </div>
+
+                <!-- Download Action -->
+                <div class="flex justify-center mt-4">
+                    <button id="btn-download" class="flex items-center gap-2 px-8 py-4 bg-black border border-transparent rounded-full shadow-lg text-lg font-bold text-white hover:scale-105 transform focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-purple-500 transition-all drop-shadow-md">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Download Cropped Poster
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Cropper.js Logic -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script>
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const workspaceArea = document.getElementById('workspace-area');
+        const imageElement = document.getElementById('image');
+        const btnAutoCrop = document.getElementById('btn-auto-crop');
+        const btnReset = document.getElementById('btn-reset');
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomOut = document.getElementById('btn-zoom-out');
+        const btnDownload = document.getElementById('btn-download');
+        const btnNewImage = document.getElementById('btn-new-image');
+
+        let cropper = null;
+        let currentScale = 100; // Tracks the physical CSS percentage scale for our custom zoom
+
+        let currentFile = {
+            name: 'image.jpg',
+            type: 'image/jpeg'
+        };
+
+        // --- Event Listeners for Upload ---
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop support
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('border-blue-500', 'bg-blue-50');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // --- Core Application Logic ---
+
+        function handleFile(file) {
+            // Ensure it's an image
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file.');
+                return;
+            }
+
+            // Save file metadata for downloading later with same format/quality
+            currentFile.name = file.name;
+            currentFile.type = file.type;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // Hide upload area, show workspace
+                uploadArea.classList.add('hidden');
+                workspaceArea.classList.remove('hidden');
+                workspaceArea.classList.add('flex');
+
+                // Set image source
+                imageElement.src = e.target.result;
+
+                // Destroy old cropper instance if exists
+                if (cropper) {
+                    cropper.destroy();
+                }
+
+                // Initialize new cropper once image is fully loaded
+                imageElement.onload = () => {
+                    initCropper();
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function initCropper() {
+            cropper = new Cropper(imageElement, {
+                viewMode: 1, // Restrict crop box to not exceed canvas
+                dragMode: 'none', // STOPS user from drawing a new box or panning inside the wrapper
+                autoCrop: true, 
+                responsive: true,
+                restore: true,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: false, // STOPS user from dragging the whole crop box
+                cropBoxResizable: true, // Keeps the ability to drag the edges/corners independently
+                toggleDragModeOnDblclick: false,
+                zoomable: false,      // Disable cropper's native zoom, we use our scale logic!
+                zoomOnWheel: false,   
+                zoomOnTouch: false,   
+                movable: false,       // Disable cropper's native moving, we use standard scrollbars!
+                rotatable: false,     
+                scalable: false,      
+                ready: function () {
+                    setTimeout(() => {
+                        performAutoCrop();
+                    }, 100);
+                }
+            });
+        }
+
+        // --- The Magic: Precision Dual-Pass Auto Crop ---
+
+        function performAutoCrop() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            canvas.width = imageElement.naturalWidth;
+            canvas.height = imageElement.naturalHeight;
+            ctx.drawImage(imageElement, 0, 0);
+
+            try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // PASS 1: Rough Bounding Box 
+                // Find the absolute outermost edges of the poster, ignoring 2% scanner dust/shadows
+                const contentThreshold = 215; 
+                function isContent(r, g, b, a) {
+                    return a > 10 && (r < contentThreshold || g < contentThreshold || b < contentThreshold);
+                }
+
+                let top = 0, bottom = canvas.height - 1, left = 0, right = canvas.width - 1;
+
+                const rowNoiseLimit = Math.max(5, Math.floor(canvas.width * 0.02));
+                const colNoiseLimit = Math.max(5, Math.floor(canvas.height * 0.02));
+
+                for (let y = 0; y < canvas.height; y++) {
+                    let contentPixels = 0;
+                    for (let x = 0; x < canvas.width; x++) {
+                        const i = (y * canvas.width + x) * 4;
+                        if (isContent(data[i], data[i+1], data[i+2], data[i+3])) contentPixels++;
+                    }
+                    if (contentPixels > rowNoiseLimit) { top = y; break; }
+                }
+
+                for (let y = canvas.height - 1; y >= 0; y--) {
+                    let contentPixels = 0;
+                    for (let x = 0; x < canvas.width; x++) {
+                        const i = (y * canvas.width + x) * 4;
+                        if (isContent(data[i], data[i+1], data[i+2], data[i+3])) contentPixels++;
+                    }
+                    if (contentPixels > rowNoiseLimit) { bottom = y; break; }
+                }
+
+                for (let x = 0; x < canvas.width; x++) {
+                    let contentPixels = 0;
+                    for (let y = top; y <= bottom; y++) {
+                        const i = (y * canvas.width + x) * 4;
+                        if (isContent(data[i], data[i+1], data[i+2], data[i+3])) contentPixels++;
+                    }
+                    if (contentPixels > colNoiseLimit) { left = x; break; }
+                }
+
+                for (let x = canvas.width - 1; x >= 0; x--) {
+                    let contentPixels = 0;
+                    for (let y = top; y <= bottom; y++) {
+                        const i = (y * canvas.width + x) * 4;
+                        if (isContent(data[i], data[i+1], data[i+2], data[i+3])) contentPixels++;
+                    }
+                    if (contentPixels > colNoiseLimit) { right = x; break; }
+                }
+
+                // PASS 2: Precision Skew / Uneven Border Removal
+                if (top < bottom && left < right) {
+                    
+                    // We allow an edge to be pushed in by up to 15% to destroy heavy skews.
+                    const maxPushX = Math.floor(canvas.width * 0.15); 
+                    const maxPushY = Math.floor(canvas.height * 0.15);
+                    
+                    const whiteThreshold = 200; 
+                    function isWhitePixel(r, g, b, a) {
+                        if (a < 10) return true; // Transparent is treated as border space
+                        return r > whiteThreshold && g > whiteThreshold && b > whiteThreshold;
+                    }
+
+                    // Left edge - push inward as long as the edge line contains > 1.5% white
+                    let leftLimit = Math.min(left + maxPushX, right - 1);
+                    while (left < leftLimit) {
+                        let whiteCount = 0;
+                        for (let y = top; y <= bottom; y++) {
+                            const i = (y * canvas.width + left) * 4;
+                            if (isWhitePixel(data[i], data[i+1], data[i+2], data[i+3])) whiteCount++;
+                        }
+                        if (whiteCount < (bottom - top) * 0.015) break; 
+                        left++;
+                    }
+
+                    // Right edge
+                    let rightLimit = Math.max(right - maxPushX, left + 1);
+                    while (right > rightLimit) {
+                        let whiteCount = 0;
+                        for (let y = top; y <= bottom; y++) {
+                            const i = (y * canvas.width + right) * 4;
+                            if (isWhitePixel(data[i], data[i+1], data[i+2], data[i+3])) whiteCount++;
+                        }
+                        if (whiteCount < (bottom - top) * 0.015) break;
+                        right--;
+                    }
+
+                    // Top edge
+                    let topLimit = Math.min(top + maxPushY, bottom - 1);
+                    while (top < topLimit) {
+                        let whiteCount = 0;
+                        for (let x = left; x <= right; x++) {
+                            const i = (top * canvas.width + x) * 4;
+                            if (isWhitePixel(data[i], data[i+1], data[i+2], data[i+3])) whiteCount++;
+                        }
+                        if (whiteCount < (right - left) * 0.015) break;
+                        top++;
+                    }
+
+                    // Bottom edge
+                    let bottomLimit = Math.max(bottom - maxPushY, top + 1);
+                    while (bottom > bottomLimit) {
+                        let whiteCount = 0;
+                        for (let x = left; x <= right; x++) {
+                            const i = (bottom * canvas.width + x) * 4;
+                            if (isWhitePixel(data[i], data[i+1], data[i+2], data[i+3])) whiteCount++;
+                        }
+                        if (whiteCount < (right - left) * 0.015) break;
+                        bottom--;
+                    }
+
+                    // Final 1px anti-aliasing polish on all sides to clear blur
+                    left = Math.min(left + 1, right);
+                    top = Math.min(top + 1, bottom);
+                    right = Math.max(right - 1, left);
+                    bottom = Math.max(bottom - 1, top);
+
+                } else {
+                    // Fallback to full image if completely blank
+                    left = 0; top = 0; right = canvas.width; bottom = canvas.height;
+                }
+
+                const cropData = {
+                    x: left,
+                    y: top,
+                    width: (right - left) + 1,
+                    height: (bottom - top) + 1
+                };
+
+                if (cropper) {
+                    cropper.setData(cropData);
+                }
+
+            } catch (error) {
+                console.error("Error analyzing image data:", error);
+            }
+        }
+
+        // --- Custom Zoom & Scroll Logic ---
+
+        function applyZoom() {
+            const container = document.getElementById('cropper-container');
+            
+            // Step 1: Save the EXACT image-relative coordinates
+            let savedData = null;
+            if (cropper) {
+                savedData = cropper.getData();
+            }
+
+            // Step 2: Resize the physical container (Forces native scrollbars to appear)
+            container.style.width = `${currentScale}%`;
+            container.style.height = `${currentScale}%`;
+
+            // Step 3: Tell cropper to re-draw and forcibly re-apply the locked coordinates
+            if (cropper) {
+                cropper.resize(); 
+                if (savedData) {
+                    cropper.setData(savedData);
+                }
+            }
+        }
+
+        // --- Button Actions ---
+
+        btnAutoCrop.addEventListener('click', () => {
+            if (cropper) performAutoCrop();
+        });
+
+        btnReset.addEventListener('click', () => {
+            if (cropper) {
+                // Expand the crop box to the maximum 100% dimensions of the original image
+                const imageData = cropper.getImageData();
+                cropper.setData({
+                    x: 0,
+                    y: 0,
+                    width: imageData.naturalWidth,
+                    height: imageData.naturalHeight
+                });
+            }
+        });
+
+        btnZoomIn.addEventListener('click', () => {
+            currentScale += 50;
+            applyZoom();
+        });
+
+        btnZoomOut.addEventListener('click', () => {
+            // Prevent shrinking smaller than the parent box
+            currentScale = Math.max(100, currentScale - 50);
+            applyZoom();
+        });
+
+        btnNewImage.addEventListener('click', () => {
+            // Reset UI
+            workspaceArea.classList.add('hidden');
+            workspaceArea.classList.remove('flex');
+            uploadArea.classList.remove('hidden');
+            fileInput.value = '';
+            
+            // Reset Zoom
+            currentScale = 100;
+            const container = document.getElementById('cropper-container');
+            container.style.width = '100%';
+            container.style.height = '100%';
+
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+        });
+
+        btnDownload.addEventListener('click', () => {
+            if (!cropper) return;
+
+            // Get the cropped canvas
+            const croppedCanvas = cropper.getCroppedCanvas({
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+
+            if (!croppedCanvas) return;
+
+            // Convert canvas to Blob keeping original mime type and max quality (1.0)
+            croppedCanvas.toBlob((blob) => {
+                if (!blob) {
+                    alert('Error creating image file.');
+                    return;
+                }
+
+                // Create a download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                
+                // Format the new filename
+                const originalNameWithoutExt = currentFile.name.substring(0, currentFile.name.lastIndexOf('.')) || currentFile.name;
+                const extension = currentFile.name.substring(currentFile.name.lastIndexOf('.')) || '.jpg';
+                a.download = `${originalNameWithoutExt}-cropped${extension}`;
+                
+                a.href = url;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Cleanup
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+
+            }, currentFile.type, 1.0); 
+        });
+
+    </script>
+</body>
+</html>
