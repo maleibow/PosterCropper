@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Matt Lilly's Poster Cropper</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,94 +14,139 @@
             background-color: #000000;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #e2e8f0;
+            touch-action: pan-y; /* Optimize touch for tablet scrolling outside the canvas */
         }
         .dead-font {
             font-family: 'Berkshire Swash', cursive;
         }
-        /* Ensure the cropper image doesn't overflow wildly before initialization */
-        img {
-            display: block;
-            max-width: 100%;
-        }
-        /* Custom scrollbars for the new workspace view */
-        ::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 6px;
-            border: 3px solid #e5e7eb;
-        }
-        ::-webkit-scrollbar-corner {
-            background: #e5e7eb;
+        /* Style for active edge selection button */
+        .edge-btn.active {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            border-color: #2563eb; /* blue-600 */
         }
     </style>
 </head>
-<body class="min-h-screen text-gray-800 flex flex-col items-center py-10 px-4 sm:px-6 lg:px-8">
+<body class="min-h-screen text-gray-800 flex flex-col items-center py-2 px-2 sm:px-4 sm:py-4 lg:px-8">
 
-    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-[0_0_40px_rgba(255,255,255,0.1)] overflow-hidden border-2 border-gray-700">
+    <div id="app-container" class="max-w-5xl w-full bg-white rounded-2xl shadow-[0_0_40px_rgba(255,255,255,0.1)] overflow-hidden border-2 border-gray-700 flex flex-col h-full max-h-screen sm:max-h-none bg-gray-50">
         
-        <!-- Header -->
-        <div class="bg-black px-6 py-10 sm:px-10 text-center border-b-4 border-yellow-400">
-            <h1 class="dead-font text-4xl sm:text-5xl font-extrabold text-white mb-4 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] tracking-wider">Matt Lilly's Poster Cropper</h1>
-            <p class="text-white text-lg sm:text-xl font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] max-w-2xl mx-auto">
-                Upload your gig posters to automatically trim the white edges. You can manually adjust the crop before downloading.
+        <!-- Header (Compact for Tablet) -->
+        <div id="app-header" class="bg-black px-4 py-3 sm:py-5 text-center border-b-4 border-yellow-400 shrink-0">
+            <h1 class="dead-font text-2xl sm:text-4xl font-extrabold text-white mb-1 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] tracking-wider">Matt Lilly's Poster Cropper</h1>
+            <p class="text-gray-300 text-xs sm:text-sm font-medium drop-shadow-sm max-w-2xl mx-auto">
+                Upload your gig posters to automatically trim the white edges. Pinch to zoom, and use the controls to fine-tune.
             </p>
         </div>
 
-        <div class="p-6 sm:p-10 bg-gray-50 text-gray-800">
+        <div class="p-3 sm:p-5 bg-gray-50 text-gray-800 flex-1 flex flex-col gap-3 h-full min-h-0">
             
             <!-- Upload Area (Visible initially) -->
-            <div id="upload-area" class="border-4 border-dashed border-red-300 rounded-xl p-12 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[300px]">
+            <div id="upload-area" class="border-4 border-dashed border-red-300 rounded-xl p-8 sm:p-12 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[300px] flex-1">
                 <svg class="w-16 h-16 text-blue-500 mb-4 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                 </svg>
-                <h3 class="text-xl font-medium text-gray-900 mb-1">Click to upload or drag & drop</h3>
+                <h3 class="text-xl font-medium text-gray-900 mb-1">Tap to upload poster</h3>
                 <p class="text-gray-500 text-sm">Supports JPG, PNG, WEBP</p>
                 <input type="file" id="file-input" class="hidden" accept="image/png, image/jpeg, image/webp" />
             </div>
 
             <!-- Workspace Area (Hidden initially) -->
-            <div id="workspace-area" class="hidden flex-col gap-6">
+            <div id="workspace-area" class="hidden flex-col gap-3 h-full">
                 
-                <!-- Toolbar -->
-                <div class="flex flex-wrap items-center justify-between gap-4 bg-gray-200 p-4 rounded-lg border border-gray-300 shadow-inner">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button id="btn-auto-crop" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm">
-                            Re-run Auto Crop
+                <!-- Compact Top Toolbar -->
+                <div class="flex flex-wrap items-center justify-center sm:justify-between gap-2 bg-gray-200 p-2 rounded-lg border border-gray-300 shadow-inner shrink-0">
+                    <div class="flex gap-2">
+                        <button id="btn-auto-crop" class="px-3 py-2 bg-blue-600 border border-transparent rounded text-sm font-bold text-white hover:bg-blue-700 shadow-sm active:scale-95 transition-transform touch-manipulation">
+                            Auto Crop
                         </button>
-                        <button id="btn-reset" class="px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors shadow-sm">
-                            Reset Crop
+                        <button id="btn-reset" class="px-3 py-2 bg-red-600 border border-transparent rounded text-sm font-bold text-white hover:bg-red-700 shadow-sm active:scale-95 transition-transform touch-manipulation">
+                            Reset
                         </button>
-                        <div class="h-8 w-px bg-gray-400 mx-1"></div>
-                        <button id="btn-zoom-in" class="p-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm" title="Zoom In">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
-                        </button>
-                        <button id="btn-zoom-out" class="p-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm" title="Zoom Out">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path></svg>
-                        </button>
-                        <span class="text-xs font-medium text-gray-500 hidden sm:inline-block ml-2">
-                            💡 Tip: Use zoom buttons and scrollbars to move around
-                        </span>
                     </div>
-                    <button id="btn-new-image" class="px-4 py-2 bg-yellow-500 border border-transparent rounded-md text-sm font-medium text-gray-900 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors shadow-sm">
-                        Upload Different Image
-                    </button>
+                    
+                    <div class="flex gap-2">
+                        <div class="flex gap-1 bg-white p-1 rounded border border-gray-300">
+                            <button id="btn-rotate-left" class="p-1.5 text-gray-700 hover:bg-gray-100 rounded active:bg-gray-200 touch-manipulation" title="Rotate Left 1°">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                            </button>
+                            <div class="w-px bg-gray-300"></div>
+                            <button id="btn-rotate-right" class="p-1.5 text-gray-700 hover:bg-gray-100 rounded active:bg-gray-200 touch-manipulation" title="Rotate Right 1°">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path></svg>
+                            </button>
+                        </div>
+                        <button id="btn-new-image" class="px-3 py-2 bg-yellow-500 border border-transparent rounded text-sm font-bold text-gray-900 hover:bg-yellow-600 shadow-sm active:scale-95 transition-transform touch-manipulation">
+                            New Image
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Cropper Container -->
-                <!-- The scroll-wrapper is fixed, and provides native scrollbars when the inner container grows -->
-                <div id="scroll-wrapper" class="w-full h-[60vh] overflow-auto shadow-inner border-2 border-gray-400 bg-[#e5e7eb] rounded-lg relative">
-                    <!-- The cropper-container grows physically when zoomed -->
-                    <div id="cropper-container" class="w-full h-full min-w-full min-h-full flex items-center justify-center">
-                        <img id="image" src="" alt="Picture to crop" class="block max-w-full">
+                <!-- Compact Nudge Panel -->
+                <div class="bg-gray-100 p-2 sm:p-3 rounded-lg border border-gray-300 shadow-sm flex flex-col sm:flex-row items-center justify-center gap-4 shrink-0">
+                    
+                    <!-- Select Edge -->
+                    <div class="flex flex-col items-center sm:items-start w-full sm:w-auto">
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">1. Select Edge</h3>
+                        <div class="flex gap-1 w-full sm:w-auto justify-center">
+                            <button class="edge-btn active flex-1 sm:flex-none px-3 py-2 bg-white border border-gray-300 rounded text-sm font-medium touch-manipulation" data-edge="top">Top</button>
+                            <button class="edge-btn flex-1 sm:flex-none px-3 py-2 bg-white border border-gray-300 rounded text-sm font-medium touch-manipulation" data-edge="bottom">Bottom</button>
+                            <button class="edge-btn flex-1 sm:flex-none px-3 py-2 bg-white border border-gray-300 rounded text-sm font-medium touch-manipulation" data-edge="left">Left</button>
+                            <button class="edge-btn flex-1 sm:flex-none px-3 py-2 bg-white border border-gray-300 rounded text-sm font-medium touch-manipulation" data-edge="right">Right</button>
+                        </div>
+                    </div>
+
+                    <div class="hidden sm:block w-px h-12 bg-gray-300 mx-2"></div>
+
+                    <!-- 1px Nudge D-Pad -->
+                    <div class="flex flex-col items-center">
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">2. Nudge 1px</h3>
+                        <div class="grid grid-cols-3 gap-1 w-[120px] h-[100px]">
+                            <div></div>
+                            <button id="nudge-up" class="bg-gray-800 text-white rounded-md flex items-center justify-center hover:bg-gray-700 active:bg-blue-600 touch-manipulation shadow-md disabled:opacity-30 disabled:bg-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"></path></svg>
+                            </button>
+                            <div></div>
+                            
+                            <button id="nudge-left" class="bg-gray-800 text-white rounded-md flex items-center justify-center hover:bg-gray-700 active:bg-blue-600 touch-manipulation shadow-md disabled:opacity-30 disabled:bg-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <div class="bg-gray-200 rounded-md flex items-center justify-center text-[10px] font-bold text-gray-500 border border-gray-300">1px</div>
+                            <button id="nudge-right" class="bg-gray-800 text-white rounded-md flex items-center justify-center hover:bg-gray-700 active:bg-blue-600 touch-manipulation shadow-md disabled:opacity-30 disabled:bg-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                            
+                            <div></div>
+                            <button id="nudge-down" class="bg-gray-800 text-white rounded-md flex items-center justify-center hover:bg-gray-700 active:bg-blue-600 touch-manipulation shadow-md disabled:opacity-30 disabled:bg-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Custom Touch/Pan/Zoom Workspace Container -->
+                <div id="touch-receiver" class="flex-1 w-full min-h-[40vh] sm:min-h-[50vh] bg-[#e5e7eb] rounded-lg overflow-hidden border-2 border-gray-400 shadow-inner relative cursor-move" style="touch-action: none; user-select: none;">
+                    
+                    <!-- Hardware Accelerated Zoom Layer -->
+                    <div id="zoom-layer" class="w-full h-full block" style="transform-origin: 0 0; transform: translate(0px, 0px) scale(1); will-change: transform;">
+                        <img id="image" src="" alt="Picture to crop" class="block max-w-full max-h-full mx-auto" draggable="false">
+                    </div>
+
+                    <!-- Floating Controls (Bottom Right Overlay) -->
+                    <div class="absolute bottom-3 right-3 flex flex-col gap-2 z-10">
+                        <button id="btn-zoom-in" class="w-10 h-10 bg-white/90 backdrop-blur border border-gray-300 rounded-full text-gray-800 flex items-center justify-center shadow-lg active:bg-gray-200 touch-manipulation">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        </button>
+                        <button id="btn-zoom-out" class="w-10 h-10 bg-white/90 backdrop-blur border border-gray-300 rounded-full text-gray-800 flex items-center justify-center shadow-lg active:bg-gray-200 touch-manipulation">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                        </button>
                     </div>
                 </div>
 
                 <!-- Download Action -->
-                <div class="flex justify-center mt-4">
-                    <button id="btn-download" class="flex items-center gap-2 px-8 py-4 bg-black border border-transparent rounded-full shadow-lg text-lg font-bold text-white hover:scale-105 transform focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-purple-500 transition-all drop-shadow-md">
+                <div class="flex justify-center shrink-0">
+                    <button id="btn-download" class="flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 bg-black border border-transparent rounded-full shadow-lg text-lg font-bold text-white hover:scale-105 active:scale-95 transform focus:outline-none transition-all w-full sm:w-auto justify-center touch-manipulation">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                         </svg>
@@ -116,123 +161,204 @@
     <!-- Cropper.js Logic -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script>
+        // DOM Elements
+        const appContainer = document.getElementById('app-container');
+        const appHeader = document.getElementById('app-header');
         const uploadArea = document.getElementById('upload-area');
         const fileInput = document.getElementById('file-input');
         const workspaceArea = document.getElementById('workspace-area');
         const imageElement = document.getElementById('image');
+        
+        const touchReceiver = document.getElementById('touch-receiver');
+        const zoomLayer = document.getElementById('zoom-layer');
+        
+        // Buttons
         const btnAutoCrop = document.getElementById('btn-auto-crop');
         const btnReset = document.getElementById('btn-reset');
         const btnZoomIn = document.getElementById('btn-zoom-in');
         const btnZoomOut = document.getElementById('btn-zoom-out');
+        const btnRotateLeft = document.getElementById('btn-rotate-left');
+        const btnRotateRight = document.getElementById('btn-rotate-right');
         const btnDownload = document.getElementById('btn-download');
         const btnNewImage = document.getElementById('btn-new-image');
+        
+        // Nudge / Fine-tune Elements
+        const edgeBtns = document.querySelectorAll('.edge-btn');
+        const nudgeUp = document.getElementById('nudge-up');
+        const nudgeDown = document.getElementById('nudge-down');
+        const nudgeLeft = document.getElementById('nudge-left');
+        const nudgeRight = document.getElementById('nudge-right');
 
         let cropper = null;
-        let currentScale = 100; // Tracks the physical CSS percentage scale for our custom zoom
+        let activeEdge = 'top'; 
+        let currentFile = { name: 'image.jpg', type: 'image/jpeg' };
 
-        let currentFile = {
-            name: 'image.jpg',
-            type: 'image/jpeg'
+        // --- Custom Pan & Zoom Logic (Separated from Cropper to guarantee 'glue') ---
+        let scale = 1, panX = 0, panY = 0;
+        let activePointers = new Map();
+        let initialPinchDistance = -1, initialPinchScale = 1;
+        let initialPinchPanX = 0, initialPinchPanY = 0;
+        let pinchCenterX = 0, pinchCenterY = 0;
+
+        function applyTransform() {
+            zoomLayer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+        
+        function resetView() {
+            scale = 1; panX = 0; panY = 0; applyTransform();
+        }
+
+        function zoomBy(factor) {
+            const rect = touchReceiver.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const newScale = Math.max(0.2, Math.min(scale * factor, 15));
+            panX = centerX - (centerX - panX) * (newScale / scale);
+            panY = centerY - (centerY - panY) * (newScale / scale);
+            scale = newScale;
+            applyTransform();
+        }
+
+        // Mouse Wheel Zoom
+        touchReceiver.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+            const rect = touchReceiver.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const newScale = Math.max(0.2, Math.min(scale * zoomDelta, 15));
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+            applyTransform();
+        }, { passive: false });
+
+        // Touch Pan & Pinch Zoom
+        touchReceiver.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.cropper-point') || e.target.closest('.cropper-line') || e.target.closest('button')) {
+                return;
+            }
+            e.preventDefault();
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            touchReceiver.setPointerCapture(e.pointerId); 
+        });
+
+        touchReceiver.addEventListener('pointermove', (e) => {
+            if (!activePointers.has(e.pointerId)) return;
+            e.preventDefault();
+
+            const prevPointer = activePointers.get(e.pointerId);
+            const deltaX = e.clientX - prevPointer.x;
+            const deltaY = e.clientY - prevPointer.y;
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+            if (activePointers.size === 1) {
+                panX += deltaX;
+                panY += deltaY;
+                applyTransform();
+            } else if (activePointers.size === 2) {
+                const pts = Array.from(activePointers.values());
+                const currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+
+                if (initialPinchDistance < 0) {
+                    initialPinchDistance = currentDist;
+                    initialPinchScale = scale;
+                    const rect = touchReceiver.getBoundingClientRect();
+                    pinchCenterX = ((pts[0].x + pts[1].x) / 2) - rect.left;
+                    pinchCenterY = ((pts[0].y + pts[1].y) / 2) - rect.top;
+                    initialPinchPanX = panX;
+                    initialPinchPanY = panY;
+                } else {
+                    const zoomDelta = currentDist / initialPinchDistance;
+                    const newScale = Math.max(0.2, Math.min(initialPinchScale * zoomDelta, 15));
+                    panX = pinchCenterX - (pinchCenterX - initialPinchPanX) * (newScale / initialPinchScale);
+                    panY = pinchCenterY - (pinchCenterY - initialPinchPanY) * (newScale / initialPinchScale);
+                    scale = newScale;
+                    applyTransform();
+                }
+            }
+        });
+
+        const pointerEnd = (e) => {
+            if (activePointers.has(e.pointerId)) activePointers.delete(e.pointerId);
+            if (activePointers.size < 2) initialPinchDistance = -1;
         };
 
+        touchReceiver.addEventListener('pointerup', pointerEnd);
+        touchReceiver.addEventListener('pointercancel', pointerEnd);
+        window.addEventListener('pointerup', pointerEnd);
+
+
         // --- Event Listeners for Upload ---
-
-        // Click to upload
         uploadArea.addEventListener('click', () => fileInput.click());
-
-        // Drag and drop support
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('border-blue-500', 'bg-blue-50');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
-        });
-
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('border-blue-500', 'bg-blue-50'); });
+        uploadArea.addEventListener('dragleave', () => { uploadArea.classList.remove('border-blue-500', 'bg-blue-50'); });
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                handleFile(e.dataTransfer.files[0]);
-            }
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
         });
-
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
+            if (e.target.files && e.target.files.length > 0) handleFile(e.target.files[0]);
         });
 
         // --- Core Application Logic ---
-
         function handleFile(file) {
-            // Ensure it's an image
             if (!file.type.startsWith('image/')) {
                 alert('Please upload an image file.');
                 return;
             }
-
-            // Save file metadata for downloading later with same format/quality
             currentFile.name = file.name;
             currentFile.type = file.type;
 
             const reader = new FileReader();
             reader.onload = (e) => {
-                // Hide upload area, show workspace
                 uploadArea.classList.add('hidden');
                 workspaceArea.classList.remove('hidden');
                 workspaceArea.classList.add('flex');
-
-                // Set image source
+                
+                resetView(); // Reset custom view transform before drawing
                 imageElement.src = e.target.result;
 
-                // Destroy old cropper instance if exists
-                if (cropper) {
-                    cropper.destroy();
-                }
+                if (cropper) cropper.destroy();
 
-                // Initialize new cropper once image is fully loaded
-                imageElement.onload = () => {
-                    initCropper();
-                };
+                imageElement.onload = () => { initCropper(); };
             };
             reader.readAsDataURL(file);
         }
 
         function initCropper() {
             cropper = new Cropper(imageElement, {
-                viewMode: 1, // Restrict crop box to not exceed canvas
-                dragMode: 'none', // STOPS user from drawing a new box or panning inside the wrapper
+                viewMode: 1, 
+                dragMode: 'none', 
                 autoCrop: true, 
                 responsive: true,
                 restore: true,
                 guides: true,
                 center: true,
                 highlight: false,
-                cropBoxMovable: false, // STOPS user from dragging the whole crop box
-                cropBoxResizable: true, // Keeps the ability to drag the edges/corners independently
+                cropBoxMovable: false, 
+                cropBoxResizable: true, 
                 toggleDragModeOnDblclick: false,
-                zoomable: false,      // Disable cropper's native zoom, we use our scale logic!
+                zoomable: false,      
                 zoomOnWheel: false,   
                 zoomOnTouch: false,   
-                movable: false,       // Disable cropper's native moving, we use standard scrollbars!
-                rotatable: false,     
+                movable: false,       
+                rotatable: true,      
                 scalable: false,      
                 ready: function () {
                     setTimeout(() => {
                         performAutoCrop();
+                        updateNudgeControls();
                     }, 100);
                 }
             });
         }
 
-        // --- The Magic: Precision Dual-Pass Auto Crop ---
-
+        // --- Auto Crop Logic ---
         function performAutoCrop() {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            
             canvas.width = imageElement.naturalWidth;
             canvas.height = imageElement.naturalHeight;
             ctx.drawImage(imageElement, 0, 0);
@@ -241,15 +367,10 @@
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
 
-                // PASS 1: Rough Bounding Box 
-                // Find the absolute outermost edges of the poster, ignoring 2% scanner dust/shadows
                 const contentThreshold = 215; 
-                function isContent(r, g, b, a) {
-                    return a > 10 && (r < contentThreshold || g < contentThreshold || b < contentThreshold);
-                }
+                function isContent(r, g, b, a) { return a > 10 && (r < contentThreshold || g < contentThreshold || b < contentThreshold); }
 
                 let top = 0, bottom = canvas.height - 1, left = 0, right = canvas.width - 1;
-
                 const rowNoiseLimit = Math.max(5, Math.floor(canvas.width * 0.02));
                 const colNoiseLimit = Math.max(5, Math.floor(canvas.height * 0.02));
 
@@ -261,7 +382,6 @@
                     }
                     if (contentPixels > rowNoiseLimit) { top = y; break; }
                 }
-
                 for (let y = canvas.height - 1; y >= 0; y--) {
                     let contentPixels = 0;
                     for (let x = 0; x < canvas.width; x++) {
@@ -270,7 +390,6 @@
                     }
                     if (contentPixels > rowNoiseLimit) { bottom = y; break; }
                 }
-
                 for (let x = 0; x < canvas.width; x++) {
                     let contentPixels = 0;
                     for (let y = top; y <= bottom; y++) {
@@ -279,7 +398,6 @@
                     }
                     if (contentPixels > colNoiseLimit) { left = x; break; }
                 }
-
                 for (let x = canvas.width - 1; x >= 0; x--) {
                     let contentPixels = 0;
                     for (let y = top; y <= bottom; y++) {
@@ -289,20 +407,15 @@
                     if (contentPixels > colNoiseLimit) { right = x; break; }
                 }
 
-                // PASS 2: Precision Skew / Uneven Border Removal
                 if (top < bottom && left < right) {
-                    
-                    // We allow an edge to be pushed in by up to 15% to destroy heavy skews.
                     const maxPushX = Math.floor(canvas.width * 0.15); 
                     const maxPushY = Math.floor(canvas.height * 0.15);
-                    
                     const whiteThreshold = 200; 
                     function isWhitePixel(r, g, b, a) {
-                        if (a < 10) return true; // Transparent is treated as border space
+                        if (a < 10) return true; 
                         return r > whiteThreshold && g > whiteThreshold && b > whiteThreshold;
                     }
 
-                    // Left edge - push inward as long as the edge line contains > 1.5% white
                     let leftLimit = Math.min(left + maxPushX, right - 1);
                     while (left < leftLimit) {
                         let whiteCount = 0;
@@ -314,7 +427,6 @@
                         left++;
                     }
 
-                    // Right edge
                     let rightLimit = Math.max(right - maxPushX, left + 1);
                     while (right > rightLimit) {
                         let whiteCount = 0;
@@ -326,7 +438,6 @@
                         right--;
                     }
 
-                    // Top edge
                     let topLimit = Math.min(top + maxPushY, bottom - 1);
                     while (top < topLimit) {
                         let whiteCount = 0;
@@ -338,7 +449,6 @@
                         top++;
                     }
 
-                    // Bottom edge
                     let bottomLimit = Math.max(bottom - maxPushY, top + 1);
                     while (bottom > bottomLimit) {
                         let whiteCount = 0;
@@ -350,129 +460,115 @@
                         bottom--;
                     }
 
-                    // Final 1px anti-aliasing polish on all sides to clear blur
                     left = Math.min(left + 1, right);
                     top = Math.min(top + 1, bottom);
                     right = Math.max(right - 1, left);
                     bottom = Math.max(bottom - 1, top);
-
                 } else {
-                    // Fallback to full image if completely blank
                     left = 0; top = 0; right = canvas.width; bottom = canvas.height;
                 }
 
-                const cropData = {
-                    x: left,
-                    y: top,
-                    width: (right - left) + 1,
-                    height: (bottom - top) + 1
-                };
-
                 if (cropper) {
-                    cropper.setData(cropData);
+                    cropper.setData({ x: left, y: top, width: (right - left) + 1, height: (bottom - top) + 1 });
                 }
-
             } catch (error) {
                 console.error("Error analyzing image data:", error);
             }
         }
 
-        // --- Custom Zoom & Scroll Logic ---
+        // --- Fine Tune / Nudge Logic ---
+        
+        edgeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                edgeBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                activeEdge = e.target.dataset.edge;
+                updateNudgeControls();
+            });
+        });
 
-        function applyZoom() {
-            const container = document.getElementById('cropper-container');
-            
-            // Step 1: Save the EXACT image-relative coordinates
-            let savedData = null;
-            if (cropper) {
-                savedData = cropper.getData();
-            }
-
-            // Step 2: Resize the physical container (Forces native scrollbars to appear)
-            container.style.width = `${currentScale}%`;
-            container.style.height = `${currentScale}%`;
-
-            // Step 3: Tell cropper to re-draw and forcibly re-apply the locked coordinates
-            if (cropper) {
-                cropper.resize(); 
-                if (savedData) {
-                    cropper.setData(savedData);
-                }
+        function updateNudgeControls() {
+            if (activeEdge === 'top' || activeEdge === 'bottom') {
+                nudgeLeft.disabled = true;
+                nudgeRight.disabled = true;
+                nudgeUp.disabled = false;
+                nudgeDown.disabled = false;
+            } else {
+                nudgeUp.disabled = true;
+                nudgeDown.disabled = true;
+                nudgeLeft.disabled = false;
+                nudgeRight.disabled = false;
             }
         }
 
-        // --- Button Actions ---
+        function nudge(direction) {
+            if (!cropper) return;
+            const data = cropper.getData(); 
+            
+            switch(activeEdge) {
+                case 'top':
+                    if (direction === 'up') { data.y -= 1; data.height += 1; }
+                    if (direction === 'down') { data.y += 1; data.height -= 1; }
+                    break;
+                case 'bottom':
+                    if (direction === 'up') { data.height -= 1; }
+                    if (direction === 'down') { data.height += 1; }
+                    break;
+                case 'left':
+                    if (direction === 'left') { data.x -= 1; data.width += 1; }
+                    if (direction === 'right') { data.x += 1; data.width -= 1; }
+                    break;
+                case 'right':
+                    if (direction === 'left') { data.width -= 1; }
+                    if (direction === 'right') { data.width += 1; }
+                    break;
+            }
+            cropper.setData(data);
+        }
 
-        btnAutoCrop.addEventListener('click', () => {
-            if (cropper) performAutoCrop();
-        });
+        nudgeUp.addEventListener('click', () => nudge('up'));
+        nudgeDown.addEventListener('click', () => nudge('down'));
+        nudgeLeft.addEventListener('click', () => nudge('left'));
+        nudgeRight.addEventListener('click', () => nudge('right'));
 
+        // --- Standard Button Actions ---
+
+        btnAutoCrop.addEventListener('click', () => { if (cropper) performAutoCrop(); });
+        
         btnReset.addEventListener('click', () => {
             if (cropper) {
-                // Expand the crop box to the maximum 100% dimensions of the original image
                 const imageData = cropper.getImageData();
-                cropper.setData({
-                    x: 0,
-                    y: 0,
-                    width: imageData.naturalWidth,
-                    height: imageData.naturalHeight
-                });
+                cropper.setData({ x: 0, y: 0, width: imageData.naturalWidth, height: imageData.naturalHeight });
             }
         });
 
-        btnZoomIn.addEventListener('click', () => {
-            currentScale += 50;
-            applyZoom();
-        });
-
-        btnZoomOut.addEventListener('click', () => {
-            // Prevent shrinking smaller than the parent box
-            currentScale = Math.max(100, currentScale - 50);
-            applyZoom();
-        });
+        btnZoomIn.addEventListener('click', () => zoomBy(1.2));
+        btnZoomOut.addEventListener('click', () => zoomBy(0.8));
+        
+        btnRotateLeft.addEventListener('click', () => { if (cropper) cropper.rotate(-1); });
+        btnRotateRight.addEventListener('click', () => { if (cropper) cropper.rotate(1); });
 
         btnNewImage.addEventListener('click', () => {
-            // Reset UI
             workspaceArea.classList.add('hidden');
             workspaceArea.classList.remove('flex');
             uploadArea.classList.remove('hidden');
             fileInput.value = '';
-            
-            // Reset Zoom
-            currentScale = 100;
-            const container = document.getElementById('cropper-container');
-            container.style.width = '100%';
-            container.style.height = '100%';
-
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
+            if (cropper) { cropper.destroy(); cropper = null; }
         });
 
         btnDownload.addEventListener('click', () => {
             if (!cropper) return;
-
-            // Get the cropped canvas
             const croppedCanvas = cropper.getCroppedCanvas({
                 imageSmoothingEnabled: true,
                 imageSmoothingQuality: 'high',
             });
-
             if (!croppedCanvas) return;
 
-            // Convert canvas to Blob keeping original mime type and max quality (1.0)
             croppedCanvas.toBlob((blob) => {
-                if (!blob) {
-                    alert('Error creating image file.');
-                    return;
-                }
-
-                // Create a download link
+                if (!blob) return alert('Error creating image file.');
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 
-                // Format the new filename
                 const originalNameWithoutExt = currentFile.name.substring(0, currentFile.name.lastIndexOf('.')) || currentFile.name;
                 const extension = currentFile.name.substring(currentFile.name.lastIndexOf('.')) || '.jpg';
                 a.download = `${originalNameWithoutExt}-cropped${extension}`;
@@ -480,13 +576,7 @@
                 a.href = url;
                 document.body.appendChild(a);
                 a.click();
-                
-                // Cleanup
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 100);
-
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
             }, currentFile.type, 1.0); 
         });
 
